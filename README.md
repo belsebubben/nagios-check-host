@@ -12,6 +12,6 @@ NAGPWD = '###'
 NAGURL = 'https://nagios.domain.com/nagios/cgi-bin/objectjson.cgi?query=host&hostname=%s'
 ```
 
-## to check for host
-nagios-check-host <hostname>
+## to check for host example
+nagios-check-host  "hostname.domain.com"
 

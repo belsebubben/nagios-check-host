@@ -1,0 +1,73 @@
+#!/usr/bin/python
+import sys
+import logging
+import requests
+import json
+
+DEBUG = False
+SSL_VERIFY = False
+from requests.packages.urllib3.exceptions import InsecureRequestWarning
+requests.packages.urllib3.disable_warnings(InsecureRequestWarning)
+USAGE = '''Usage: %s <hostname>''' % sys.argv[0]
+LOGFORMAT = '%(asctime)s %(levelname)s: %(message)s'
+WARNLOGFORMAT = '\033[1;31m %(asctime)s %(levelname)s: %(message)s \033[1;m'
+
+from nagioscredentials import *
+'''
+NAGUSER = '###'
+NAGPWD = '###'
+NAGURL = 'https://nagios.domain.com/nagios/cgi-bin/objectjson.cgi?query=host&hostname=%s'
+'''
+
+def logSetup():
+    global logger, errlogger
+    logger = logging.getLogger(__name__)
+    errlogger = logging.getLogger(__name__ + 'err')
+
+    loghandler = logging.StreamHandler(stream=sys.stdout)
+    errloghandler = logging.StreamHandler(stream=sys.stderr)
+
+    loghandler.setFormatter(logging.Formatter(LOGFORMAT))
+    errloghandler.setFormatter(logging.Formatter(WARNLOGFORMAT))
+
+    logger.addHandler(loghandler)
+    errlogger.addHandler( errloghandler )
+    logger.setLevel(logging.DEBUG) if DEBUG else logger.setLevel(logging.INFO)
+    logger.debug("Debugging enabled")
+
+def get_json(location,usr,pwd):
+    """
+    Performs a GET using the passed URL location
+    """
+    try:
+        r = requests.get(location, auth=(usr, pwd), verify=SSL_VERIFY)
+        return r.json()
+    except:
+        errlogger.warning("Failed to get data from %s : %s" % (location, sys.exc_info()))
+        raise
+
+def getOptions():
+    if len(sys.argv) < 2:
+        errlogger.warning( "incorrect usage!" )
+        errlogger.warning( USAGE )
+        sys.exit(1)
+    return sys.argv[1]
+
+def checkHost(nagdata,hostname):
+    if not int(nagdata['result']['type_code']) == 0:
+        #errlogger.warning("Host:%s not found in nagios: %s" % (hostname, nagdata['result']) )
+        errlogger.warning("Host:%s not found in nagios (%s ; %s) \n" % ( hostname, nagdata['result']['type_text'], nagdata['result']['message'] ))
+        sys.exit()
+    else:
+        #logger.info("Found host:%s in nagios: %s" % (hostname, nagdata['result']))
+        logger.info("Found host:%s in nagios (%s ; %s)\n" % (hostname, nagdata['result']['type_text'], nagdata['result']['message'] ))
+
+def main():
+    logSetup()
+    hostname = getOptions()
+    nagdata = get_json(NAGURL % hostname, NAGUSER, NAGPWD )
+    logger.debug("data: %s" % json.dumps(nagdata, sort_keys=True, indent=4, separators=(',', ': ')))
+    checkHost(nagdata,hostname)
+
+if __name__ in '__main__':
+    main()

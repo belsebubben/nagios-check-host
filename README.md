@@ -1,4 +1,4 @@
-##About
+## About
 Script using nagios json api to check if host exist in nagios.
 
 ## Prerequisite

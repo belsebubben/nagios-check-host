@@ -32,8 +32,8 @@ WARNLOGFORMAT = '\033[1;31m %(asctime)s %(levelname)s: %(message)s \033[1;m'
 class extendedStatus:
 
     def __init__(self,data):
-        self.host_status = {1:"pendng",2:"up",4:"down",16:"unreachable"}
-        #self.service_status = {1:"pendng",2:"ok",4:"warning",8:"unknown",16:"critical"}
+        self.host_status = {1:"pending",2:"up",4:"down",16:"unreachable"}
+        #self.service_status = {1:"pending",2:"ok",4:"warning",8:"unknown",16:"critical"}
         self.result = {}
         self.hostChecks(data)
 

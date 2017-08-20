@@ -12,7 +12,11 @@ NAGURL = 'https://nagios-server.mydomain.com/nagios/cgi-bin/statusjson.cgi?query
 EXTENDED_STATUS = True
 ```
 
-``Note``: Chang credentials and link reference according to your enviroment...
+``Note``: Change credentials and link reference according to your enviroment...
 
 ## Usage example
-nagios-check-host  "hostname.domain.com"
+```
+[j0nix]$ nagios-check-host super-server-1
+2017-08-20 21:28:23,992 INFO: Success, super-server-1 found, status: up, checks_enabled: True, last_update: Sun Aug 20 21:28:13 2017
+```
+

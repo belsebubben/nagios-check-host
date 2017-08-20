@@ -1,25 +1,64 @@
 #!/usr/bin/python
-'''Check for the existence of host in nagios
+'''
+ABOUT: Check for the existence of host in nagios, and some...
+some additional info @ https://www.slideshare.net/nagiosinc/eric-stanley-and-andy-brist-api-and-nagios/
 
-nagioscredentials.py file example below
-NAGUSER = '###'
-NAGPWD = '###'
-NAGURL = 'https://nagios.domain.com/nagios/cgi-bin/objectjson.cgi?query=host&hostname=%s'
 
+* example nagioscredential.py *
+NAGUSER = 'nagios'
+NAGPWD = 'nagios'
+NAGURL = 'https://nagios.domain.com/nagios/cgi-bin/statusjson.cgi?query=host&hostname=%s'
+EXTENDED_STATUS = True
 '''
 import sys
 import logging
 import json
+import time
 import requests
 from requests.packages.urllib3.exceptions import InsecureRequestWarning
-from nagioscredentials import NAGUSER, NAGPWD, NAGURL
+from nagioscredentials import NAGUSER, NAGPWD, NAGURL, EXTENDED_STATUS
 
 requests.packages.urllib3.disable_warnings(InsecureRequestWarning)
+
 DEBUG = False
 SSL_VERIFY = False
+
 USAGE = '''Usage: %s <hostname>''' % sys.argv[0]
-LOGFORMAT = '%(asctime)s %(levelname)s: %(message)s'
+
+LOGFORMAT = '\033[1;32m%(asctime)s %(levelname)s: %(message)s\033[1;m'
+
 WARNLOGFORMAT = '\033[1;31m %(asctime)s %(levelname)s: %(message)s \033[1;m'
+
+class extendedStatus:
+
+    def __init__(self,data):
+        self.host_status = {1:"pendng",2:"up",4:"down",16:"unreachable"}
+        #self.service_status = {1:"pendng",2:"ok",4:"warning",8:"unknown",16:"critical"}
+        self.result = {}
+        self.hostChecks(data)
+
+    def hostChecks(self,nagdata):
+
+        try:
+            self.result['status'] = self.host_status[int(nagdata['data']['host']['status'])]
+        except KeyError:
+            self.result['status'] = None
+
+        try:
+            self.result['checks_enabled'] = nagdata['data']['host']['checks_enabled']
+        except KeyError:
+            self.result['checks_enabled'] = None
+
+        try:
+            utime = (nagdata['data']['host']['last_update'] / 1000)
+            self.result['last_update'] = time.ctime(int(utime))
+        except KeyError:
+            self.result['last_update'] = None
+
+    def result(self):
+        return self.result
+    
+
 
 def logsetup():
     '''Set up logger'''
@@ -41,44 +80,78 @@ def logsetup():
         logger.setLevel(logging.INFO)
     logger.debug("Debugging enabled")
 
-def get_json(location, usr, pwd):
+def get_json(location, **auth):
     """
     Performs a GET using the passed URL location
     """
-    try:
-        req = requests.get(location, auth=(usr, pwd), verify=SSL_VERIFY)
-        return req.json()
-    except:
-        errlogger.warning("Failed to get data from %s : %s", location, sys.exc_info())
-        raise
+    if auth.get('usr') and auth.get('pwd'):
 
+        try:
+            req = requests.get(location, auth=(auth['usr'], auth['pwd']), verify=SSL_VERIFY)
+            return req.json()
+
+        except:
+            errlogger.warning("Failed to get data from %s : %s", location, sys.exc_info())
+            raise
+    else:
+
+        try:
+            req = requests.get(location, verify=SSL_VERIFY)
+            return req.json()
+
+        except:
+            errlogger.warning("Failed to get data from %s : %s", location, sys.exc_info())
+            raise
+
+    
 def getoptions():
     '''Options processing'''
+
     if len(sys.argv) < 2:
         errlogger.warning("incorrect usage!")
         errlogger.warning(USAGE)
         sys.exit(1)
+
     return sys.argv[1]
 
-def checkhost(nagdata, hostname):
+def checkhost(nagdata, hostname, *extended):
+
     '''Check returned json if host is configured in nagios'''
+
     if int(nagdata['result']['type_code']) != 0:
-        #errlogger.warning("Host:%s not found in nagios: %s" % (hostname, nagdata['result']) )
-        errlogger.warning("Host:%s not found in nagios (%s ; %s) \n", hostname,\
-                nagdata['result']['type_text'], nagdata['result']['message'])
+        errlogger.warning("Host:%s not found in nagios (%s ; %s) \n", hostname, nagdata['result']['type_text'], nagdata['result']['message'])
         sys.exit()
+
     else:
-        #logger.info("Found host:%s in nagios: %s" % (hostname, nagdata['result']))
-        logger.info("Found host:%s in nagios (%s ; %s)\n", hostname,\
-                nagdata['result']['type_text'], nagdata['result']['message'])
+
+        result = "{}, {} found".format(nagdata['result']['type_text'],hostname)
+
+        if extended != None:
+            for check in extended:
+                if type(check) == dict:
+                    key = check.keys()
+                    for c in key:
+                    #for c in sorted(key):
+                        result = result + ", {}: {}".format(c, check[c])
+                else:
+                    result = result + ",{}\n".format(check)
+
+        logger.info("%s\n",result)
 
 def main():
+
     '''main'''
     logsetup()
     hostname = getoptions()
-    nagdata = get_json(NAGURL % hostname, NAGUSER, NAGPWD)
+    nagdata = get_json(NAGURL % hostname, usr=NAGUSER, pwd=NAGPWD)
+
     logger.debug("data: %s", json.dumps(nagdata, sort_keys=True, indent=4, separators=(',', ': ')))
-    checkhost(nagdata, hostname)
+
+    if EXTENDED_STATUS:
+        extended = extendedStatus(nagdata)
+        checkhost(nagdata, hostname, extended.result)
+    else:
+        checkhost(nagdata, hostname)
 
 if __name__ in '__main__':
     main()

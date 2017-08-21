@@ -1,17 +1,22 @@
-# nagios-check-host
-checks using nagios json api if host exist used for automation etc
+## About
+Script using nagios json api to check if host exist in nagios.
 
-### Usage
+## Prerequisite
 
-create a file named:
-```nagioscredentials.py```
+create a file named ```nagioscredentials.py``` with below content:
 
 ```
-NAGUSER = '###'
-NAGPWD = '###'
-NAGURL = 'https://nagios.domain.com/nagios/cgi-bin/objectjson.cgi?query=host&hostname=%s'
+NAGUSER = 'nagiosuser'
+NAGPWD = 'nagiospass'
+NAGURL = 'https://nagios-server.mydomain.com/nagios/cgi-bin/statusjson.cgi?query=host&hostname=%s'
+EXTENDED_STATUS = True
 ```
 
-## to check for host example
-nagios-check-host  "hostname.domain.com"
+``Note``: Change credentials and link reference according to your enviroment...
+
+## Usage example
+```
+[j0nix]$ nagios-check-host super-server-1
+2017-08-20 21:28:23,992 INFO: Success, super-server-1 found, status: up, checks_enabled: True, last_update: Sun Aug 20 21:28:13 2017
+```
 
